@@ -1,0 +1,41 @@
+metadata:
+  problem_id: MockA
+  title: The River Intake Shield
+  units_note: Primary flow unit in data files is cfs; convert as needed. 1 cfs = 0.0283168
+    m^3/s.
+river_reach:
+  L_km: 30.0
+  intake_location_km: 30.0
+  default_width_m: 25.0
+  default_depth_m: 2.0
+water_system:
+  intake_max_withdrawal_m3s: 0.6
+  emergency_storage_m3: 25000
+  stop_intake_cost_CNY_per_hour: 80000
+spill_event:
+  total_mass_kg: 500.0
+  release_duration_min: 30
+  conservative_tracer_assumption: true
+water_quality:
+  early_warning_threshold_mg_L: 0.1
+  mandatory_stop_threshold_mg_L: 0.3
+transport_parameters:
+  model: 1D advection-dispersion-reaction
+  longitudinal_dispersion_D_m2s:
+    baseline: 50.0
+    typical_range:
+    - 10.0
+    - 200.0
+    notes: Use for sensitivity analysis.
+  first_order_decay_k_per_day:
+    baseline: 0.05
+    typical_range:
+    - 0.0
+    - 0.2
+    notes: Set to 0 for conservative pollutant; otherwise convert to 1/s by dividing
+      by 86400.
+sensors:
+  max_number: 3
+  capex_CNY_each: 350000
+  measurement_noise_sigma_mg_L: 0.02
+  reporting_delay_min: 5
