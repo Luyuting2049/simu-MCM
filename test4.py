@@ -142,6 +142,8 @@ monitor_locations_hour = [0, 5, 10, 15, 20, 25, 30]  # For hour-scale plot
 monitor_indices_min = [np.argmin(np.abs(x_km - loc)) for loc in monitor_locations_min]
 monitor_indices_hour = [np.argmin(np.abs(x_km - loc)) for loc in monitor_locations_hour]
 
+
+#以下均为画图
 # ===== PLOT 1: Minutes scale (0-10 km) - KEEP EXACTLY AS BEFORE =====
 print(f"\nStarting simulation for minute-scale plot (0-3 hours)...")
 t_end_min = 3 * 3600  # 3 hours
@@ -167,6 +169,9 @@ for i, idx in enumerate(monitor_indices_min):
 # Create minute-scale plot (EXACT SAME AS BEFORE)
 plt.figure(figsize=(16, 10))
 colors = plt.cm.Set3(np.linspace(0, 1, len(monitor_locations_min)))
+
+one_km_index = monitor_locations_min.index(1)
+colors[one_km_index] = (0.5, 0.7, 1.0, 1.0)   # 深蓝色，alpha=0.85
 
 for i, loc_km in enumerate(monitor_locations_min):
     plt.plot(t_min_detailed, C_monitor_min[i, :] * 1000,  # Convert to g/m³
@@ -249,11 +254,13 @@ plt.savefig('plot2_hours_scale_24h.png', dpi=200, bbox_inches='tight')
 plt.close()
 print("✓ Plot 2 saved: plot2_hours_scale_24h.png")
 
-# ===== PLOT 3: 3D Surface Plot with REVERSED AXES and REMOVED PEAK =====
-print("\nPreparing 3D plot with reversed axes and removed peak...")
-t_end_3d = 12 * 3600  # 12 hours for 3D plot
+# ===== PLOT 3: 3D Surface Plot - FROM 2h to 36h, RAINBOW COLORS =====
+print("\nPreparing 3D plot (from 2h to 36h, rainbow colors)...")
 
-# Simulate for 3D plot
+# 修改模拟时间为36小时
+t_end_3d = 36 * 3600  # 36小时 for 3D plot
+
+# Simulate for 3D plot (36小时)
 sol_3d = solve_ivp(river_pde, 
                    [0, t_end_3d], 
                    C0, 
@@ -262,9 +269,14 @@ sol_3d = solve_ivp(river_pde,
                    rtol=1e-6,
                    atol=1e-9)
 
-# Prepare 3D data
-x_3d = np.linspace(0, 30, 60)  # 0-30 km
-t_3d = np.linspace(0, 12, 60)  # 0-12 hours
+print(f"3D plot simulation completed: {sol_3d.success}")
+print(f"3D plot time steps: {len(sol_3d.t)}")
+
+# 准备3D数据 - 从2小时开始，到36小时
+start_hour = 2.0  # 2小时
+end_hour = 24.0   # 36小时
+t_3d = np.linspace(start_hour, end_hour, 80)  # 2-36小时
+x_3d = np.linspace(0, 30, 80)  # 0-30 km
 X_3d, T_3d = np.meshgrid(x_3d, t_3d, indexing='ij')
 C_3d = np.zeros_like(X_3d)
 
@@ -275,66 +287,69 @@ for i, xi in enumerate(x_3d):
         C_all = get_concentration_at_time(t_sec, sol_3d)
         C_3d[i, j] = C_all[x_idx]
 
-# REMOVE THE INITIAL PEAK: Set very high values near source to a lower value
-# Find the maximum value away from source (x > 5km)
-mask_far = X_3d > 5  # Locations more than 5km from source
+# 移除初始高峰
+mask_far = X_3d > 5
 max_far = np.max(C_3d[mask_far]) if np.any(mask_far) else np.max(C_3d)
+mask_near_source = X_3d <= 1
+C_3d[mask_near_source] = np.minimum(C_3d[mask_near_source], max_far * 3)
 
-# Replace very high values near source
-mask_near_source = X_3d <= 1  # Very close to source (0-1km)
-C_3d[mask_near_source] = np.minimum(C_3d[mask_near_source], max_far * 3)  # Cap at 3x max_far
+# 调整浓度坐标比例：放大100倍，突出细节
+C_3d_scaled = C_3d * 100  # 放大100倍
 
-# Scale down further for better visualization
-C_3d_scaled = C_3d * 1  # Scale by 1 (no scaling) since we already reduced source
-
-# REVERSE THE AXES: Create reversed versions
-# For corner origin, we want time to go from max to min, distance from max to min
-T_3d_reversed = 12 - T_3d  # Time: 12 -> 0
-X_3d_reversed = 30 - X_3d  # Distance: 30 -> 0
-C_3d_reversed = C_3d_scaled  # Keep concentration same
-
-# Create 3D plot with REVERSED AXES
+# 创建3D图
 fig = plt.figure(figsize=(20, 12))
 ax = fig.add_subplot(111, projection='3d')
 
-# Use 'coolwarm' colormap for better color variation
-# Create surface with REVERSED coordinates
-surf = ax.plot_surface(T_3d_reversed, X_3d_reversed, C_3d_reversed,
-                      cmap='coolwarm',  # Blue to red colormap
-                      linewidth=0.1,
+# 使用jet colormap（彩虹色）
+surf = ax.plot_surface(T_3d, X_3d, C_3d_scaled,
+                      cmap='jet',  # 彩虹色渐变
+                      linewidth=0.05,
                       edgecolor='gray',
                       antialiased=True,
                       rstride=1,
                       cstride=1,
-                      alpha=0.85)
+                      alpha=0.92,
+                      vmin=0,
+                      vmax=np.max(C_3d_scaled))
 
-# Set axis limits - REVERSED: now 12 is near corner, 0 is far
-ax.set_xlim(12, 0)  # Time: 12 at corner, 0 away
-ax.set_ylim(30, 0)  # Distance: 30 at corner, 0 away
-ax.set_zlim(0, np.max(C_3d_reversed) * 1.1)
+# 设置坐标轴范围和标签
+ax.set_xlim(start_hour, end_hour)  # 时间从2小时到36小时
+ax.set_ylim(0, 30)  # 距离：0-30km
+ax.set_zlim(0, np.max(C_3d_scaled) * 1.1)
 
-# Customize axes labels (now reversed)
-ax.set_xlabel('\nTime (hours) →', fontsize=13, labelpad=15)
-ax.set_ylabel('\n← Distance from Source (km)', fontsize=13, labelpad=15)
-ax.set_zlabel('\nConcentration (kg/m³)', fontsize=13, labelpad=15)
+# 坐标轴标签
+ax.set_xlabel('Time (hours)', fontsize=13, labelpad=15)
+ax.set_ylabel('Distance from Source (km)', fontsize=13, labelpad=15)
+ax.set_zlabel('Concentration (10⁻² × kg/m³)', fontsize=13, labelpad=15)  # 注明放大100倍
 
-# Set title
-ax.set_title('3D Spatio-Temporal Evolution (Reversed Axes)\nCorner Origin: t=12h, x=30km',
+# 设置标题
+ax.set_title('3D Spatio-Temporal Evolution (2-36h)\nRainbow Color Gradient',
              fontsize=16, fontweight='bold', pad=25)
 
-# Set view angle - adjust for reversed axes
-ax.view_init(elev=25, azim=-120)
+# 设置视角 - 从角落看
+ax.view_init(elev=30, azim=-125)
 
-# Add colorbar
-cbar = fig.colorbar(surf, ax=ax, shrink=0.7, aspect=25, pad=0.12)
-cbar.set_label('kg/m³', fontsize=12, rotation=270, labelpad=20)
+# 修改网格线为黑色细虚线
+ax.xaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
+ax.yaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
+ax.zaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
 
-# Improve grid
-ax.xaxis._axinfo["grid"].update({"linewidth": 0.3, "color": 'gray', "alpha": 0.2})
-ax.yaxis._axinfo["grid"].update({"linewidth": 0.3, "color": 'gray', "alpha": 0.2})
-ax.zaxis._axinfo["grid"].update({"linewidth": 0.3, "color": 'gray', "alpha": 0.2})
-
-# Set pane properties
+# 设置面板属性
 ax.xaxis.pane.fill = False
 ax.yaxis.pane.fill = False
 ax.zaxis.pane.fill = False
@@ -345,37 +360,205 @@ ax.xaxis.pane.set_alpha(0.1)
 ax.yaxis.pane.set_alpha(0.1)
 ax.zaxis.pane.set_alpha(0.1)
 
-# Add contour lines on the base
-levels = np.linspace(0, np.max(C_3d_reversed), 8)
-contours = ax.contour(T_3d_reversed, X_3d_reversed, C_3d_reversed,
+# 添加黑色虚线等高线
+levels = np.linspace(0, np.max(C_3d_scaled), 15)
+contours = ax.contour(T_3d, X_3d, C_3d_scaled,
                      levels=levels,
                      zdir='z',
                      offset=0,
                      colors='black',
                      linewidths=0.5,
-                     alpha=0.3)
+                     linestyles='--',
+                     alpha=0.4)
 
-# Mark release end time (in reversed coordinates)
-release_end_hour = cfg.duration / 3600
-release_end_reversed = 12 - release_end_hour
-ax.plot([release_end_reversed, release_end_reversed], [0, 30],
-        [0, 0],
-        color='red', linewidth=2.0, linestyle='--', alpha=0.7,
-        label=f'Release end')
-
-# Mark intake location (in reversed coordinates: 0km is far, 30km is near)
-ax.plot(T_3d_reversed[0, :], np.full_like(T_3d_reversed[0, :], 0),  # x=0 in reversed = 30km actual
-        C_3d_reversed[0, :],  # First row corresponds to x=30km actual
-        color='blue', linewidth=1.8, alpha=0.6,
+# 标记取水口位置（30km）
+ax.plot(t_3d, np.full_like(t_3d, 30),
+        C_3d_scaled[-1, :],  # 最后一行对应30km
+        color='white', linewidth=2.5, alpha=0.9,
         label='Intake (30km)')
 
-# Add legend
-ax.legend(fontsize=11, loc='upper left')
+# 添加时间线显示5km处的浓度变化
+idx_5km = np.argmin(np.abs(x_3d - 5))
+ax.plot(t_3d, np.full_like(t_3d, 5),
+        C_3d_scaled[idx_5km, :],
+        color='cyan', linewidth=2.0, alpha=0.8,
+        label='5km location')
+
+# 添加时间线显示15km处的浓度变化
+idx_15km = np.argmin(np.abs(x_3d - 15))
+ax.plot(t_3d, np.full_like(t_3d, 15),
+        C_3d_scaled[idx_15km, :],
+        color='magenta', linewidth=2.0, alpha=0.8,
+        label='15km location')
+
+# 添加颜色条
+cbar = fig.colorbar(surf, ax=ax, shrink=0.7, aspect=25, pad=0.12)
+cbar.set_label('10⁻² × kg/m³', fontsize=12, rotation=270, labelpad=20)
+
+# 添加图例
+ax.legend(fontsize=10, loc='upper left')
+
+# 添加文本说明
+ax.text2D(0.02, 0.95, 'Time: 2-36h\nRainbow (jet) colors\nConcentration ×100',
+          transform=ax.transAxes, fontsize=10,
+          bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
 
 plt.tight_layout()
-plt.savefig('plot3_3d_reversed_axes.png', dpi=200, bbox_inches='tight')
+plt.savefig('plot3_3d_2h_36h_rainbow.png', dpi=200, bbox_inches='tight')
 plt.close()
-print("✓ Plot 3 saved: plot3_3d_reversed_axes.png")
+print("✓ Plot 3 saved: plot3_3d_2h_36h_rainbow.png")
+
+# ===== PLOT 4: 3D Surface Plot - 0-3h FULL RANGE =====
+print("\nPreparing 3D plot (0-3h, full range with peak)...")
+t_end_3d_short = 3 * 3600  # 3小时 for 3D plot
+
+# Simulate for 3D plot (3小时)
+sol_3d_short = solve_ivp(river_pde, 
+                         [0, t_end_3d_short], 
+                         C0, 
+                         method='RK45',
+                         max_step=dt_max,
+                         rtol=1e-6,
+                         atol=1e-9)
+
+# 准备3D数据 - 0-3小时，包含初始峰值
+start_hour_short = 0.0  # 0小时
+end_hour_short = 3.0    # 3小时
+t_3d_short = np.linspace(start_hour_short, end_hour_short, 100)  # 0-3小时，更多点
+x_3d_short = np.linspace(0, 30, 100)  # 0-30 km，更多点
+X_3d_short, T_3d_short = np.meshgrid(x_3d_short, t_3d_short, indexing='ij')
+C_3d_short = np.zeros_like(X_3d_short)
+
+for i, xi in enumerate(x_3d_short):
+    x_idx = np.argmin(np.abs(x_km - xi))
+    for j, tj in enumerate(t_3d_short):
+        t_sec = tj * 3600
+        C_all = get_concentration_at_time(t_sec, sol_3d_short)
+        C_3d_short[i, j] = C_all[x_idx]
+
+# 不移除初始峰值，但为了可视化调整缩放
+# 放大倍数适当减小，因为峰值本身已经很高
+C_3d_short_scaled = C_3d_short * 50  # 放大50倍（比之前的100倍小）
+
+# 使用jet colormap（彩虹色）
+fig = plt.figure(figsize=(20, 12))
+ax = fig.add_subplot(111, projection='3d')
+
+# 使用jet colormap（彩虹色渐变）
+surf = ax.plot_surface(T_3d_short, X_3d_short, C_3d_short_scaled,
+                      cmap='jet',  # 彩虹色渐变
+                      linewidth=0.05,
+                      edgecolor='gray',
+                      antialiased=True,
+                      rstride=1,
+                      cstride=1,
+                      alpha=0.92,
+                      vmin=0,
+                      vmax=np.max(C_3d_short_scaled))
+
+# 设置坐标轴范围和标签
+ax.set_xlim(start_hour_short, end_hour_short)  # 时间从0到3小时
+ax.set_ylim(0, 30)  # 距离：0-30km
+ax.set_zlim(0, np.max(C_3d_short_scaled) * 1.1)
+
+# 坐标轴标签
+ax.set_xlabel('Time (hours)', fontsize=13, labelpad=15)
+ax.set_ylabel('Distance from Source (km)', fontsize=13, labelpad=15)
+ax.set_zlabel('Concentration (transformed)', fontsize=13, labelpad=15)
+
+# 设置标题
+ax.set_title('3D Spatio-Temporal Evolution (0-3h)\nIncluding Initial Peak - Rainbow Colors',
+             fontsize=16, fontweight='bold', pad=25)
+
+# 设置视角 - 从角落看
+ax.view_init(elev=30, azim=-125)
+
+# 修改网格线为黑色细虚线
+ax.xaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
+ax.yaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
+ax.zaxis._axinfo["grid"].update({
+    "linewidth": 0.5, 
+    "color": 'black', 
+    "linestyle": '--',
+    "alpha": 0.3
+})
+
+# 设置面板属性
+ax.xaxis.pane.fill = False
+ax.yaxis.pane.fill = False
+ax.zaxis.pane.fill = False
+ax.xaxis.pane.set_edgecolor('lightgray')
+ax.yaxis.pane.set_edgecolor('lightgray')
+ax.zaxis.pane.set_edgecolor('lightgray')
+ax.xaxis.pane.set_alpha(0.1)
+ax.yaxis.pane.set_alpha(0.1)
+ax.zaxis.pane.set_alpha(0.1)
+
+# 添加黑色虚线等高线
+levels = np.linspace(0, np.max(C_3d_short_scaled), 15)
+contours = ax.contour(T_3d_short, X_3d_short, C_3d_short_scaled,
+                     levels=levels,
+                     zdir='z',
+                     offset=0,
+                     colors='black',
+                     linewidths=0.5,
+                     linestyles='--',
+                     alpha=0.4)
+
+# 标记排放结束时间
+release_end_hour = cfg.duration / 3600
+ax.plot([release_end_hour, release_end_hour], [0, 30],
+        [0, 0],
+        color='red', linewidth=2.5, linestyle='--', alpha=0.9,
+        label=f'Release end ({release_end_hour:.2f}h)')
+
+# 标记取水口位置（30km）
+ax.plot(t_3d_short, np.full_like(t_3d_short, 30),
+        C_3d_short_scaled[-1, :],  # 最后一行对应30km
+        color='white', linewidth=2.5, alpha=0.9,
+        label='Intake (30km)')
+
+# 添加时间线显示1km处的浓度变化（初始峰值位置）
+idx_1km = np.argmin(np.abs(x_3d_short - 1))
+ax.plot(t_3d_short, np.full_like(t_3d_short, 1),
+        C_3d_short_scaled[idx_1km, :],
+        color='cyan', linewidth=2.0, alpha=0.8,
+        label='1km location (peak)')
+
+# 添加时间线显示10km处的浓度变化
+idx_10km = np.argmin(np.abs(x_3d_short - 10))
+ax.plot(t_3d_short, np.full_like(t_3d_short, 10),
+        C_3d_short_scaled[idx_10km, :],
+        color='magenta', linewidth=2.0, alpha=0.8,
+        label='10km location')
+
+# 添加颜色条
+cbar = fig.colorbar(surf, ax=ax, shrink=0.7, aspect=25, pad=0.12)
+cbar.set_label('Transformed Concentration', fontsize=12, rotation=270, labelpad=20)
+
+# 添加图例
+ax.legend(fontsize=10, loc='upper left')
+
+# 添加文本说明
+ax.text2D(0.02, 0.95, 'Time: 0-3h\nIncludes initial peak\nRainbow (jet) colors',
+          transform=ax.transAxes, fontsize=10,
+          bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+plt.tight_layout()
+plt.savefig('plot4_3d_0_3h_with_peak.png', dpi=200, bbox_inches='tight')
+plt.close()
+print("✓ Plot 4 saved: plot4_3d_0_3h_with_peak.png")
+
 
 # ===== Analysis =====
 print("\n" + "="*60)
