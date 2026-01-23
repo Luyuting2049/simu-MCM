@@ -5,134 +5,75 @@
 \usepackage{caption}
 \captionsetup{font=small, labelfont=bf}
 
+\usepackage{mathtools}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
 \begin{document}
 
 \section{Task 3: Optimal Operational Decision-Making Framework for Water Treatment Plants}
-\subsection{Task Rationale and Core Modeling Approach}
-Task 3 serves as the decision-making phase of the "prediction-decision" closed-loop framework, building directly on the contaminant concentration forecasts derived in Task 2. The primary objective is to generate an optimal 24-hour shutdown/operation schedule for the water treatment plant, minimizing a holistic weighted cost function that balances operational stability, water supply reliability, and public health risks.
+\subsection{Task Background and Core Modeling Approach}
+Task 3 serves as the decision-making phase in the "prediction-decision" closed-loop system, directly building on the contaminant concentration prediction results from Task 2. The core objective of this task is to formulate an optimal 24-hour shutdown/operation scheduling plan for water treatment plants, achieving a balance among operational stability, water supply reliability, and public health risks by minimizing a comprehensive weighted cost function.
 
-To address the temporal dependency of hourly decisions (where each choice impacts future states and costs), a two-tier modeling strategy is adopted:
+To address the temporal dependency of hourly decisions (where decisions at each time step affect subsequent states and costs), this study adopts a two-tier modeling approach that combines an optimization model with a solution algorithm to ensure scientific and optimal decision-making:
 \begin{itemize}[noitemsep, topsep=0pt]
-    \item A \textbf{weighted multi-objective optimization model} to quantify trade-offs across competing cost dimensions.
-    \item A \textbf{dynamic programming (DP) model} to solve the time-dependent optimal control problem, ensuring globally optimal decisions over the 24-hour horizon.
+    \item \textbf{Weighted Multi-Objective Optimization Model}: As the core optimization carrier, it quantifies the trade-offs among different cost dimensions.
+    \item \textbf{Dynamic Programming Algorithm}: A solution algorithm designed based on the core idea of dynamic programming, used to solve time-varying optimal control problems, decompose global decision-making challenges, and ensure globally optimal decisions over the 24-hour time horizon.
 \end{itemize}
 
 \subsection{Weighted Multi-Objective Cost Function}
-The core of the model is a weighted sum of three orthogonal cost components, designed to reflect the relative priority of operational stability, supply reliability, and public health:
+The core of the model is a weighted sum of three mutually independent cost components, with weight design reflecting the priority ranking of operational stability, water supply reliability, and public health:
 \begin{equation}
-\min \quad \text{Total Cost} = \alpha \cdot C_{\text{shutdown}} + \beta \cdot C_{\text{supply}} + \gamma \cdot C_{\text{risk}}
+\min \quad \text{Total Cost} = \alpha \cdot C_{\text{shutdown}} + \beta \cdot C_{\text{supply loss}} + \gamma \cdot C_{\text{risk}}
 \label{eq:total_cost}
 \end{equation}
-where normalized weights $\alpha=0.35$, $\beta=0.25$, and $\gamma=0.40$ prioritize risk mitigation, followed by operational cost and supply reliability.
+where normalized weights $\alpha=0.35$, $\beta=0.25$, and $\gamma=0.40$ prioritize public health risk prevention and control, followed by operational costs and water supply reliability.
 
 \subsubsection{Shutdown Cost}
-This component captures direct operational expenses incurred during plant deactivation:
+This cost component accounts for direct operational expenses incurred during plant shutdowns:
 \begin{equation}
 C_{\text{shutdown}} = \sum_{t=0}^{23} C_s \cdot U(t)
 \label{eq:shutdown_cost}
 \end{equation}
-- $U(t) \in \{0,1\}$: Binary decision variable (1 = shutdown, 0 = operation) at time $t$.
-- $C_s$: Hourly cost of plant shutdown (defined in the problem statement).
-- The summation accumulates costs only for periods when the plant is shut down, aligning with real-world operational economics.
+\begin{itemize}[noitemsep, topsep=0pt]
+    \item $U(t) \in \{0,1\}$: Binary decision variable at time $t$ (1 = shutdown, 0 = operation);
+    \item $C_s$: Hourly shutdown cost of the water plant (specific value given in the problem statement);
+    \item The summation only accumulates costs during plant shutdown periods, aligning with the economic laws of actual operations.
+\end{itemize}
 
 \subsubsection{Supply Loss Cost}
-This component quantifies the economic and societal impact of unmet water demand:
+This cost component quantifies the economic and social impacts of unmet water demand:
 \begin{equation}
-C_{\text{supply}} = \sum_{t=0}^{23} C_l \cdot \max\left(D(t) - Q(t) \cdot (1-U(t)), \, 0\right)
+C_{\text{supply loss}} = \sum_{t=0}^{23} C_l \cdot \max\left(D(t) - Q(t) \cdot (1-U(t)), \, 0\right)
 \label{eq:supply_cost}
 \end{equation}
-- $D(t)$/$Q(t)$: Water demand/supply rate at time $t$ (in $\text{m}^3$).
-- $\max(\cdot,0)$: Ensures only positive supply deficits are penalized (avoids non-physical negative costs).
-- $C_l$: Unit cost of supply loss (reflecting the value of unmet residential/industrial demand).
+\begin{itemize}[noitemsep, topsep=0pt]
+    \item $D(t)$/$Q(t)$: Water demand/supply rate at time $t$ (unit: $\text{m}^3$);
+    \item $\max(\cdot,0)$: Only penalizes positive water supply gaps (demand exceeding supply), avoiding non-physical negative costs;
+    \item $C_l$: Unit cost of supply loss (reflecting the value of unmet water demand for residents and industries).
+\end{itemize}
 
-\subsubsection{Risk Cost (Concentration-Dependent Penalty)}
-This component incorporates health risk penalties tied to contaminant concentrations, operationalizing the trade-off between water supply and public safety:
+\subsubsection{Risk Cost (Concentration-Dependent Penalty Term)}
+This cost component incorporates health risk penalties linked to contaminant concentrations, realizing quantitative trade-offs between water supply guarantee and public safety:
 \begin{equation}
 C_{\text{risk}} = \sum_{t=0}^{23} \left[ k \cdot \max\left(C(t) - C_{\text{safe}}, \, 0\right) \right] \cdot Q(t) \cdot (1-U(t))
 \label{eq:risk_cost}
 \end{equation}
-- $C(t)$: Contaminant concentration (from Task 2 forecasts, in mg/L); $C_{\text{safe}}$: Regulatory safety threshold.
-- $k \cdot \max\left(C(t) - C_{\text{safe}}, \, 0\right)$: Linear penalty for concentrations exceeding safe limits (proportional risk pricing).
-- $Q(t) \cdot (1-U(t))$: Restricts risk costs to operational periods (no contaminated water supply during shutdowns).
+\begin{itemize}[noitemsep, topsep=0pt]
+    \item $C(t)$: Contaminant concentration (prediction result from Task 2, unit: mg/L);
+    \item $C_{\text{safe}}$: Regulatory safety concentration threshold;
+    \item $k \cdot \max\left(C(t) - C_{\text{safe}}, \, 0\right)$: Linear penalty for concentrations exceeding safety limits (risk proportional to concentration);
+    \item $Q(t) \cdot (1-U(t))$: Risk cost is only calculated during plant operation periods (no contaminated water supply during shutdowns, hence no risk cost).
+\end{itemize}
 
-\subsection{Dynamic Programming Formulation}
-The DP model solves the time-dependent optimal control problem using Bellman's principle of optimality, decomposing the 24-hour horizon into sequential, solvable subproblems.
+\subsection{Dynamic Programming Algorithm Design}
+Based on Bellman's principle of optimality and the core idea of dynamic programming, a solution algorithm is designed to decompose the 24-hour time horizon into sequentially solvable subproblems, efficiently solve time-varying optimal control problems, and avoid the complexity of global decision-making.
 
 \subsubsection{State Definition}
-The state vector at time $t$ is defined as $V(t, C(t), S(t), U(t-1))$, representing the minimum total cost from time $t$ to 23, given:
+The state vector at time $t$ is defined as $V(t, C(t), S(t), U(t-1))$, representing the minimum cumulative cost from time $t$ to 23 under the following conditions:
 \begin{itemize}[noitemsep, topsep=0pt]
-    \item Contaminant concentration $C(t)$ (Task 2 output),
-    \item Emergency storage level $S(t)$ (in $\text{m}^3$),
-    \item Previous shutdown decision $U(t-1)$ (captures operational hysteresis).
+    \item Contaminant concentration $C(t)$ (output from Task 2);
+    \item Emergency water storage volume $S(t)$ (unit: $\text{m}^3$);
+    \item Previous shutdown decision $U(t-1)$ (capturing operational hysteresis effects).
 \end{itemize}
-This definition ensures the state exhibits the \textbf{Markovian property} (future states depend only on the current state), satisfying DP optimality conditions.
+This state definition satisfies the Markov property (future states depend only on the current state), providing a core prerequisite for solving the dynamic programming algorithm and complying with the algorithm's optimality conditions.
 
-\subsubsection{State Transition Equation}
-The Bellman equation for state transition is:
-\begin{equation}
-V(t, \cdot) = \min_{U(t) \in \{0,1\}} \left[ \text{Instant Cost}(t, U(t)) + V(t+1, \cdot) \right]
-\label{eq:dp_transition}
-\end{equation}
-- $\text{Instant Cost}(t, U(t))$: Sum of the three cost components (Section 2) for decision $U(t)$ at time $t$.
-- The $\min$ operator selects the decision (shutdown/operation) that minimizes the sum of immediate and future costs, ensuring global optimality.
-
-\subsubsection{Boundary Condition}
-At the end of the 24-hour horizon ($t=24$), no future costs are incurred:
-\begin{equation}
-V(24, \cdot) = 0
-\label{eq:dp_boundary}
-\end{equation}
-This terminates backward recursion and provides a starting point for DP solution.
-
-\subsubsection{Constraints}
-Physical/operational constraints ensure model feasibility:
-\begin{enumerate}[label=\arabic*., noitemsep, topsep=0pt]
-    \item \textbf{Storage Balance}: Tracks emergency storage evolution:
-        \begin{equation}
-        S(t+1) = S(t) + Q_{\text{in}}(t) - Q_{\text{out}}(t) \cdot (1-U(t))
-        \label{eq:storage_balance}
-        \end{equation}
-    \item \textbf{Concentration Limit}: Prohibits operation above safe concentrations:
-        \begin{equation}
-        C(t) \leq C_{\text{max}} \quad (\text{if } U(t)=0)
-        \label{eq:conc_limit}
-        \end{equation}
-    \item \textbf{Non-negativity}: Ensures physical feasibility:
-        \begin{equation}
-        S(t) \geq 0, \quad Q(t) \geq 0, \quad U(t) \in \{0,1\}
-        \label{eq:non_neg}
-        \end{equation}
-\end{enumerate}
-
-\subsection{Key Parameter Definition Table}
-\begin{table}[!htbp]
-\centering
-\small
-\caption{Task 3 Core Parameter Definitions}
-\label{tab:params}
-\begin{tabular}{lcll}
-\toprule
-Parameter & Symbol & Value/Definition & Unit \\
-\midrule
-Weight for Shutdown Cost & $\alpha$ & 0.35 & Dimensionless \\
-Weight for Supply Loss Cost & $\beta$ & 0.25 & Dimensionless \\
-Weight for Risk Cost & $\gamma$ & 0.40 & Dimensionless \\
-Time Step & $t$ & 0, 1, 2, ..., 23 & Hour \\
-Contaminant Concentration & $C(t)$ & From Task 2 forecasts & mg/L \\
-Emergency Storage Level & $S(t)$ & Dynamic storage volume & $\text{m}^3$ \\
-Previous Shutdown State & $U(t-1)$ & 0 (Open) / 1 (Shutdown) & Binary \\
-Decision Variable & $U(t)$ & 0 (Open) / 1 (Shutdown) & Binary \\
-Unit Shutdown Cost & $C_s$ & Defined in problem statement & \$/hour \\
-Unit Supply Loss Cost & $C_l$ & Defined in problem statement & \$/$\text{m}^3$ \\
-Concentration Penalty Coefficient & $k$ & 0.8 (linear increment factor) & \$/($\text{m}^3 \cdot \text{mg/L}$) \\
-Safe Concentration Threshold & $C_{\text{safe}}$ & 20 & mg/L \\
-Maximum Allowable Concentration & $C_{\text{max}}$ & Regulatory limit & mg/L \\
-Water Demand & $D(t)$ & Historical/forecasted data & $\text{m}^3$ \\
-Water Supply Rate & $Q(t)$ & Dynamically calculated & $\text{m}^3$ \\
-Inflow Rate & $Q_{\text{in}}(t)$ & Plant inflow volume & $\text{m}^3$ \\
-Outflow Rate & $Q_{\text{out}}(t)$ & Plant outflow volume & $\text{m}^3$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\end{document}
