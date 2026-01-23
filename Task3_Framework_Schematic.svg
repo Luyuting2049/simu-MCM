@@ -4,7 +4,7 @@
   
   <!-- 标题 -->
   <text x="600" y="50" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#1E88E5">
-    Task 3: Optimal Operational Decision-Making Framework for Water Treatment Plants
+    Task 3: Optimal Operational Decision-Making Framework
   </text>
   <text x="600" y="80" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#666666">
     Prediction → Decision → Optimization → Validation Closed-Loop System
@@ -16,13 +16,13 @@
     Input Module
   </text>
   <text x="150" y="205" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    📊 Contaminant Concentration (Task 2)
+    Contaminant Concentration (Task 2)
   </text>
   <text x="150" y="225" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    💧 Hydrological Data (Flow Velocity, etc.)
+    Hydrological Data (Flow Velocity, etc.)
   </text>
   <text x="150" y="245" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    ⚙️ Model Parameters (α, β, γ, k, C_safe)
+    Model Parameters (α, β, γ, k, Csafe)
   </text>
 
   <!-- 2. 核心模块1：加权多目标成本函数 -->
@@ -31,28 +31,28 @@
     Weighted Multi-Objective Cost Function
   </text>
   <text x="475" y="175" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white">
-    min Total Cost = α·C_shutdown + β·C_supply + γ·C_risk
+    min Total Cost = α·Cshutdown + β·Csupply + γ·Crisk
   </text>
   <!-- 子成本 -->
   <rect x="360" y="190" width="70" height="60" rx="8" ry="8" fill="#FFB74D" opacity="0.9"/>
   <text x="395" y="215" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="white">
-    🔒 Shutdown Cost
+    Shutdown Cost
   </text>
   <text x="395" y="235" font-family="Arial, sans-serif" font-size="9" text-anchor="middle" fill="white">
-    ΣC_s·U(t)
+    ΣCs·U(t)
   </text>
 
   <rect x="440" y="190" width="70" height="60" rx="8" ry="8" fill="#FFB74D" opacity="0.9"/>
   <text x="475" y="215" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="white">
-    📉 Supply Loss Cost
+    Supply Loss Cost
   </text>
   <text x="475" y="235" font-family="Arial, sans-serif" font-size="9" text-anchor="middle" fill="white">
-    ΣC_l·max(...)
+    ΣCl·max(...)
   </text>
 
   <rect x="520" y="190" width="70" height="60" rx="8" ry="8" fill="#FFB74D" opacity="0.9"/>
   <text x="555" y="215" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="white">
-    ⚠️ Risk Cost
+    Risk Cost
   </text>
   <text x="555" y="235" font-family="Arial, sans-serif" font-size="9" text-anchor="middle" fill="white">
     Σk·max(...)·Q(t)
@@ -67,19 +67,19 @@
     Dynamic Programming Algorithm
   </text>
   <text x="825" y="175" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    📌 State Definition: V(t, C(t), S(t), U(t-1))
+    State Definition: V(t, C(t), S(t), U(t-1))
   </text>
   <text x="825" y="195" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    🔄 State Transition: V(t) = min[Instant Cost + V(t+1)]
+    State Transition: V(t) = min[Instant Cost + V(t+1)]
   </text>
   <text x="825" y="215" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    🔚 Boundary Condition: V(24) = 0
+    Boundary Condition: V(24) = 0
   </text>
   <text x="825" y="235" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    🚧 Constraints: Storage Balance, Concentration Limit, Non-negativity
+    Constraints: Storage Balance, Concentration Limit
   </text>
   <text x="825" y="265" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="white">
-    Bellman's Principle of Optimality | Markov Property
+    Bellman's Principle | Markov Property
   </text>
 
   <!-- 4. 输出模块 -->
@@ -88,13 +88,13 @@
     Output Module
   </text>
   <text x="475" y="405" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    📅 Optimal 24h Shutdown/Operation Schedule
+    Optimal 24h Shutdown/Operation Schedule
   </text>
   <text x="475" y="425" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    📈 Key Indicators: Cost, Shutdown Duration, Risk Exposure
+    Key Indicators: Cost, Shutdown Duration, Risk
   </text>
   <text x="475" y="445" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    💧 Supply Loss Rate = 0% (Emergency Storage Support)
+    Supply Loss Rate = 0% (Emergency Storage)
   </text>
 
   <!-- 5. 验证模块 -->
@@ -103,10 +103,10 @@
     Validation Module
   </text>
   <text x="700" y="415" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">
-    🔬 Sensitivity & Robustness Analysis
+    Sensitivity & Robustness Analysis
   </text>
   <text x="700" y="435" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="white">
-    Parameter/Hydrological Uncertainty Verification
+    Uncertainty Verification
   </text>
 
   <!-- 流程箭头（渐变蓝） -->
@@ -128,7 +128,7 @@
   <!-- 验证→核心1（闭环反馈） -->
   <path d="M 700 470 Q 550 450 475 300" stroke="url(#arrowGrad)" stroke-width="3" fill="none" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
   <text x="580" y="460" font-family="Arial, sans-serif" font-size="10" fill="#1E88E5" text-anchor="middle">
-    🔁 Closed-Loop Feedback (Parameter Adjustment)
+    Closed-Loop Feedback (Parameter Adjustment)
   </text>
 
   <!-- 箭头标记 -->
@@ -141,7 +141,6 @@
   <rect x="1020" y="170" width="40" height="20" fill="#64B5F6" rx="3" ry="3"/>
   <text x="1040" y="185" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="white">WTP</text>
   <circle cx="1040" cy="220" r="10" fill="#4CAF50"/>
-  <text x="1040" y="223" font-family="Arial, sans-serif" font-size="6" text-anchor="middle" fill="white">💧</text>
 
   <!-- 水流装饰图标（底部） -->
   <path d="M 50 550 Q 150 530 250 550 T 450 550 T 650 550 T 850 550 T 1050 550" stroke="#64B5F6" stroke-width="6" fill="none" stroke-linecap="round"/>
