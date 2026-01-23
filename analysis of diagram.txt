@@ -1,0 +1,35 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amsfonts, booktabs}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=*, topsep=2pt, itemsep=1pt}
+
+\begin{document}
+
+\section{Decision Result Analysis}
+\begin{itemize}
+    \item \textbf{Contaminant Concentration Dimension}: 
+          A significant negative correlation exists between flow velocity and concentration response. As velocity increases from 0.5 to 2.0 m/s, the concentration peak drops from 0.6 mg/L to 0.2 mg/L, the peak occurrence time advances by 8–12 hours, and the duration of high concentration (>0.3 mg/L) shortens from 6 hours to 2 hours, indicating a substantial improvement in contaminant diffusion efficiency.
+    
+    \item \textbf{Optimal Decision Dimension}: 
+          Shutdown duration shows a stepwise decrease with increasing velocity: longest at 0.5 m/s (6 hours), reduced to 3 hours at 0.8 m/s, and stabilized at 2 hours when velocity ≥ 1.1 m/s. The shutdown timing advances synchronously with the concentration peak, and the decision logic consistently follows the rule of "shutdown when concentration exceeds threshold", dynamically matching pollution risks.
+    
+    \item \textbf{Cost and Risk Dimension}: 
+          The comprehensive cost is the lowest (28,000–40,000 CNY) at a velocity of 1.1–1.7 m/s, with risk exposure duration reduced to 0 hours, achieving the optimal balance of "low risk, low cost, and short shutdown". When velocity > 1.7 m/s, the cost rebounds slightly with no additional reduction in risk.
+    
+    \item \textbf{Water Supply Stability Dimension}: 
+          The water supply loss rate remains 0\% across all velocity scenarios, verifying that the emergency water storage system fully compensates for supply gaps during shutdowns and confirming the rationality and stability of the system design.
+\end{itemize}
+
+\section{Key Conclusions \& Practical Implications}
+\begin{itemize}
+    \item \textbf{Core Rule}: Flow velocity is the core variable regulating contaminant diffusion, shutdown decisions, and comprehensive cost, with the optimal velocity range at 1.1–1.7 m/s.
+    
+    \item \textbf{Model Performance}: 
+          Model decisions are highly synchronized with concentration changes, demonstrating good dynamic adaptability and robustness, and can accurately respond to pollution risks under different velocities.
+    
+    \item \textbf{Operational Suggestions}: 
+          In practical operation, prioritize regulating flow velocity to 1.1–1.7 m/s; when velocity < 1.1 m/s, reserve emergency water in advance to avoid potential risks from prolonged shutdowns.
+\end{itemize}
+
+\end{document}
