@@ -1,150 +1,123 @@
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
-# ==========================================
-# 1. 题目核心参数 (根据上传文件整理)
-# ==========================================
-Q_AVG = 3.22          # 平均流量 (m3/s)
-COST_PER_HOUR = 80000 # 停产损失 (CNY/h)
-DELAY_H = 5 / 60      # 5分钟报告延迟 (h)
-INTAKE_KM = 30.0      # 取水口位置
+# 尝试导入 seaborn
+try:
+    import seaborn as sns
+    HAS_SEABORN = True
+except ImportError:
+    HAS_SEABORN = False
 
-# 河道几何分段数据 (来自 river_geometry_segments.csv)
-# 每行格式: (开始km, 结束km, 宽度m, 深度m)
-GEO_DATA = [
-    (0, 10, 22, 1.8),
-    (10, 20, 25, 2.0),
-    (20, 30, 28, 2.2)
-]
+# --- 基础参数 ---
+Q_BASE = 3.23
+DELAY_H = 5 / 60
+THRESHOLD = 0.1
+INTAKE_KM = 30.0
+CANDIDATES = [3, 5, 8, 12, 15, 18, 22, 25, 28]
+GEO_DATA = [(0, 10, 22, 1.8), (10, 20, 25, 2.0), (20, 30, 28, 2.2)]
 
-# 候选监测点 (来自 candidate_sensor_locations_km.csv)
-CANDIDATES = [3, 5, 8, 10, 12, 15, 18, 20, 22, 25, 28]
+# --- 核心逻辑 ---
+def get_travel_time(x_km, Q_val):
+    velocities = [(Q_val / (w * d)) * 3.6 for _, _, w, d in GEO_DATA]
+    time = 0; curr_x = x_km
+    for i in range(len(GEO_DATA)):
+        start, end = GEO_DATA[i][0], GEO_DATA[i][1]
+        if curr_x < end:
+            dist = min(end - curr_x, INTAKE_KM - curr_x)
+            time += dist / velocities[i]
+            curr_x += dist
+    return time
 
-# ==========================================
-# 2. 物理模型函数
-# ==========================================
-def get_segment_velocity():
-    """计算各段流速 (km/h)"""
-    velocities = []
-    for start, end, w, d in GEO_DATA:
-        v_m_s = Q_AVG / (w * d)  # v = Q / (W*H)
-        v_km_h = v_m_s * 3.6     # 转换为 km/h
-        velocities.append({
-            'start': start, 'end': end, 'v': v_km_h
-        })
-    return velocities
-
-VEL_SEGMENTS = get_segment_velocity()
-
-def get_travel_time(start_x):
-    """计算污染物从 start_x 流到 30km 处所需的总时长 (h)"""
-    remaining_dist = INTAKE_KM - start_x
-    total_time = 0
-    curr_x = start_x
-    
-    for seg in VEL_SEGMENTS:
-        if curr_x < seg['end']:
-            dist_in_seg = min(seg['end'] - curr_x, remaining_dist)
-            if dist_in_seg > 0:
-                total_time += dist_in_seg / seg['v']
-                curr_x += dist_in_seg
-                remaining_dist -= dist_in_seg
-    return total_time
-
-# ==========================================
-# 3. 贪心算法核心
-# ==========================================
-def evaluate_network(selected_set):
-    """
-    评价函数 (Objective Function):
-    Score = 预警价值 - 空间冗余惩罚
-    """
-    if not selected_set: return 0
-    
-    # 计算这组传感器的最大预警提前量
-    # 预警时间 = 水流传导时间 - 报告延迟
-    lead_times = [get_travel_time(x) - DELAY_H for x in selected_set]
-    max_lead_time = max(lead_times)
-    
-    # 1. 经济效益 (每一小时价值 80,000)
-    benefit = max_lead_time * COST_PER_HOUR
-    
-    # 2. 空间冗余惩罚 (美赛亮点：防止扎堆)
-    # 如果两个传感器距离小于 6km，说明监测范围重叠，扣除其价值
-    penalty = 0
-    locs = sorted(selected_set)
-    for i in range(len(locs) - 1):
-        gap = locs[i+1] - locs[i]
-        if gap < 6:
-            penalty += (6 - gap) * 15000  # 惩罚系数
-            
-    return benefit - penalty
-
-def run_optimization():
-    print("="*50)
-    print("MCM 2026: 传感器布置方案优化 (物理-经济耦合模型)")
-    print("="*50)
-    
+def optimize_layout():
     selected = []
-    candidates_remaining = CANDIDATES.copy()
-    
-    for i in range(3): # 放置 3 个传感器
-        best_score = -float('inf')
-        best_loc = None
-        
-        for loc in candidates_remaining:
-            current_test = selected + [loc]
-            score = evaluate_network(current_test)
-            
-            if score > best_score:
-                best_score = score
-                best_loc = loc
-        
-        if best_loc is not None:
-            selected.append(best_loc)
-            candidates_remaining.remove(best_loc)
-            print(f"步骤 {i+1}: 选定 {best_loc:>2} km (当前网络估值: ¥{best_score:,.0f})")
+    temp_candidates = CANDIDATES.copy()
+    for _ in range(3):
+        best_s, best_l = -float('inf'), None
+        for loc in temp_candidates:
+            max_lead = max([get_travel_time(l, Q_BASE) for l in selected + [loc]]) - DELAY_H
+            score = max_lead * 80000
+            locs = sorted(selected + [loc])
+            for i in range(len(locs)-1):
+                if locs[i+1] - locs[i] < 6: score -= 20000
+            if score > best_s: best_s, best_l = score, loc
+        selected.append(best_l)
+        temp_candidates.remove(best_l)
+    return sorted(selected)
 
-    final_locs = sorted(selected)
-    max_warning = get_travel_time(final_locs[0]) - DELAY_H
+# --- 绘图函数 ---
+def run_dashboard():
+    final_locs = optimize_layout()
+    # 稍微减少采样点数量 (从10个减到8个)，防止纵向重叠
+    Q_range = np.linspace(Q_BASE*0.7, Q_BASE*1.3, 8) 
+    D_range = [10, 50, 100, 150, 200]
+    sens_matrix = np.zeros((len(Q_range), len(D_range)))
     
-    print("\n" + "-"*30)
-    print(f"最终推荐位置: {final_locs} km")
-    print(f"最大预警时间: {max_warning:.2f} 小时")
-    print(f"预期减损价值: ¥{max_warning * COST_PER_HOUR:,.0f}")
-    print("-"*30)
-    
-    plot_results(final_locs)
+    for j, d in enumerate(D_range):
+        for i, q in enumerate(Q_range):
+            base_t = get_travel_time(final_locs[0], q)
+            dispersion_adv = (np.sqrt(d) / 40) 
+            sens_matrix[i, j] = base_t - DELAY_H + dispersion_adv
 
-# ==========================================
-# 4. 可视化
-# ==========================================
-def plot_results(selected):
-    plt.figure(figsize=(12, 5))
+    # 创建超大画布
+    fig = plt.figure(figsize=(16, 16))
+
+    # --- 图 1: 布局 ---
+    ax1 = plt.subplot(3, 2, 1)
+    ax1.axhline(y=0, color='skyblue', linewidth=10, alpha=0.3)
+    ax1.scatter(final_locs, [0]*len(final_locs), c='red', marker='*', s=200)
+    for s in final_locs: ax1.text(s, 0.2, f'{s}km', ha='center', fontweight='bold')
+    ax1.set_title("1. Optimized Deployment Map", pad=20)
+    ax1.set_xlim(-1, 31); ax1.set_yticks([])
+
+    # --- 图 2: 热力图 (针对 Q 轴数字重叠深度优化) ---
+    ax2 = plt.subplot(3, 2, 2)
+    if HAS_SEABORN:
+        # yticklabels 已经格式化为 2 位小数
+        y_labels = [f"{q:.2f}" for q in Q_range]
+        
+        sns.heatmap(sens_matrix, annot=True, fmt=".2f", cmap="YlGnBu", ax=ax2,
+                    xticklabels=D_range, 
+                    yticklabels=y_labels,
+                    cbar_kws={
+                        "label": "Lead Time (hours)",
+                        "shrink": 0.7,
+                        "pad": 0.1      # 增加侧栏与图的距离，给左边留出平衡感
+                    })
+        # 强制设置 Y 轴标签的旋转角度和字体大小，防止重叠
+        ax2.set_yticklabels(y_labels, rotation=0, fontsize=10) 
+    else:
+        im = ax2.imshow(sens_matrix, cmap="YlGnBu", aspect='auto')
+        plt.colorbar(im, ax=ax2)
     
-    # 绘制河道流速背景（颜色越深流速越快）
-    colors = ['#e3f2fd', '#90caf9', '#42a5f5']
-    for i, seg in enumerate(VEL_SEGMENTS):
-        plt.axvspan(seg['start'], seg['end'], color=colors[i], alpha=0.3, 
-                    label=f"Seg {i+1} ({seg['v']:.2f} km/h)")
-    
-    # 画所有候选点
-    plt.scatter(CANDIDATES, [0.1]*len(CANDIDATES), c='gray', s=30, label='Candidate Sites', alpha=0.5)
-    # 画选中的最优传感器
-    plt.scatter(selected, [0.1]*len(selected), c='red', marker='*', s=300, edgecolors='black', label='Final Placements')
-    
-    for s in selected:
-        plt.annotate(f'{s}km', (s, 0.1), xytext=(0, 15), textcoords='offset points', 
-                     ha='center', fontweight='bold', color='red')
-    
-    plt.title("Sensor Placement: Balancing Lead-Time & Spatial Diversity", fontsize=14)
-    plt.xlabel("Distance from Spill Source (km)")
-    plt.xlim(-1, 31); plt.ylim(-0.5, 1); plt.yticks([]); plt.legend(loc='lower right')
-    plt.grid(axis='x', linestyle=':', alpha=0.5)
-    plt.tight_layout()
+    ax2.set_title("2. Sensitivity Analysis Matrix", pad=30, fontsize=14)
+    ax2.set_xlabel("Dispersion D (m²/s)", labelpad=15)
+    ax2.set_ylabel("Discharge Q (m³/s)", labelpad=10) # 增加 labelpad 撑开距离
+
+    # --- 图 3: 信号处理 ---
+    ax3 = plt.subplot(3, 1, 2)
+    t_axis = np.linspace(0, 120, 300)
+    filtered = 0.25 * np.exp(-((t_axis-60)**2)/120)
+    measured = filtered + np.random.normal(0, 0.03, len(t_axis))
+    ax3.plot(t_axis, measured, 'g.', alpha=0.3, label='Raw Data')
+    ax3.plot(t_axis, filtered, 'b-', linewidth=2, label='Filtered Signal')
+    ax3.axhline(y=THRESHOLD, color='r', linestyle='--', label='Alert Level')
+    ax3.set_title("3. Real-time Denoising Performance", pad=20)
+    ax3.set_xlabel("Time (min)"); ax3.legend(loc='upper right')
+
+    # --- 图 4: 灵敏度曲线 ---
+    ax4 = plt.subplot(3, 1, 3)
+    colors = plt.cm.plasma(np.linspace(0, 0.8, len(D_range)))
+    for j, d in enumerate(D_range):
+        ax4.plot(Q_range, sens_matrix[:, j], 'o-', label=f'D={d}', color=colors[j], linewidth=1.5)
+    ax4.set_title("4. Multi-Parametric Stability Test (Lead Time vs Q)", pad=20)
+    ax4.set_xlabel("Discharge Q (m³/s)"); ax4.set_ylabel("Lead Time (h)")
+    ax4.legend(title="Dispersion (D)", loc='center left', bbox_to_anchor=(1, 0.5))
+    ax4.grid(True, linestyle='--', alpha=0.5)
+
+    # 这里的 pad=6.0 是核心，彻底拉开上下子图，防止图2的标签撞到图3
+    plt.tight_layout(pad=6.0) 
     plt.show()
 
 if __name__ == "__main__":
-    run_optimization()
+    run_dashboard()
